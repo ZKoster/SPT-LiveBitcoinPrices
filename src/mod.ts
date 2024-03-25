@@ -6,41 +6,67 @@ import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
 import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
 import { LogTextColor } from "@spt-aki/models/spt/logging/LogTextColor";
 import { LogBackgroundColor } from "@spt-aki/models/spt/logging/LogBackgroundColor";
-import { get } from "https";
+import { request } from "https";
 
 class Mod implements IPostDBLoadModAsync {
     public async postDBLoadAsync(container: DependencyContainer): Promise<void> {
         const logger = container.resolve<ILogger>("WinstonLogger");
         const db = container.resolve<DatabaseServer>("DatabaseServer");
 
-        const price = await this.getPrice();
         const tables = db.getTables();
         const handbook = tables.templates.handbook;
+        const therapist_coef = (100 - tables.traders["54cb57776803fa99248b456e"].base.loyaltyLevels[0].buy_price_coef) / 100;
         const bitcoin = handbook.Items.find(x => x.Id == "59faff1d86f7746c51718c9c");
-        const usd = handbook.Items.find(x => x.Id == "5696686a4bdc2da3298b456a");
 
-        const inRub = price * usd.Price * 0.18;
-        logger.logWithColor(`updating bitcoin to ${inRub}`, LogTextColor.MAGENTA, LogBackgroundColor.WHITE);
-        bitcoin.Price = inRub;
+        return this.getPrice().then((price) => {
+            const inRub = price / therapist_coef;
+            bitcoin.Price = inRub;
+            logger.logWithColor(`Updated bitcoin to ${inRub}`, LogTextColor.MAGENTA, LogBackgroundColor.WHITE);
+        });
     }
 
     private async getPrice(): Promise<number> {
-        return new Promise((resolve, reject) => get(
-            "https://api.blockchain.com/v3/exchange/tickers/BTC-USD",
-            (res) => {
-                res.setEncoding("utf8");
-                let rawData = "";
-                res.on("data", (chunk) => { rawData += chunk; });
-                res.on("end", () => {
-                    try {
-                        const parsedData = JSON.parse(rawData);
-                        const price = parseInt(parsedData["price_24h"], 10);
-                        resolve(price);
-                    } catch (e) {
-                        console.error(e.message);
-                    }
+        return new Promise((resolve, reject) => {
+            const req = request(
+                "https://api.tarkov.dev/graphql",
+                {
+                    method: "POST"
+                },
+                (res) => {
+                    res.setEncoding("utf8");
+                    let rawData = "";
+                    res.on("data", (chunk) => { rawData += chunk; });
+                    res.on("end", () => {
+                        try {
+                            const parsedData = JSON.parse(rawData);
+                            const price = parsedData.data.item.sellFor.find((x) => x.vendor.name === "Therapist").priceRUB
+                            resolve(price);
+                        } catch (e) {
+                            console.error(e.message);
+                        }
+                    });
                 });
+
+            req.on('error', (e) => {
+                console.error(e.message);
+                reject(e);
+            })
+
+            req.write(JSON.stringify({
+                query: `{
+                    item(id: "59faff1d86f7746c51718c9c")
+                    {
+                      sellFor {
+                        priceRUB
+                        vendor {
+                          name
+                        }
+                      }
+                    }
+                  }`
             }));
+            req.end();
+        })
     }
 }
 
