@@ -32,8 +32,7 @@ class Mod implements IPostDBLoadModAsync {
 
         // Update price on startup
         const currentTime = Math.floor(Date.now() / 1000);
-        if (!await Mod.getPrice(currentTime > Mod.config.nextUpdate))
-        {
+        if (!await Mod.getPrice(currentTime > Mod.config.nextUpdate)) {
             return;
         }
 
@@ -46,54 +45,54 @@ class Mod implements IPostDBLoadModAsync {
     static async getPrice(fetchPrices = true): Promise<number> {
         return new Promise((resolve, reject) => {
             if (!fetchPrices) {
-				// Load last saved price
+                // Load last saved price
                 const lastValue = JSON.parse(fs.readFileSync(Mod.pricePath, "utf-8"))[`${Mod.bitcoin.Id}`];
                 if (lastValue === undefined) {
-					Mod.logger.logWithColor(`No last price saved, keeping bitcoin price at: ${Mod.bitcoin.Price}`, LogTextColor.MAGENTA, LogBackgroundColor.WHITE);
-				} else {
-					Mod.bitcoin.Price = lastValue;
+                    Mod.logger.logWithColor(`No last price saved, keeping bitcoin price at: ${Mod.bitcoin.Price}`, LogTextColor.MAGENTA, LogBackgroundColor.WHITE);
+                } else {
+                    Mod.bitcoin.Price = lastValue;
                     Mod.logger.logWithColor(`Updated bitcoin to ${Mod.bitcoin.Price} from price path`, LogTextColor.MAGENTA, LogBackgroundColor.WHITE);
-				}
-				resolve(Mod.bitcoin.Price);
+                }
+                resolve(Mod.bitcoin.Price);
             } else {
-				const req = request(
-                "https://api.tarkov.dev/graphql",
-                {
-                    method: "POST"
-                },
-                (res) => {
-                    res.setEncoding("utf8");
-                    let rawData = "";
-                    res.on("data", (chunk) => { rawData += chunk; });
-                    res.on("end", () => {
-                        try {
-                            const parsedData = JSON.parse(rawData);
-                            const price = parsedData.data.item.sellFor.find((x) => x.vendor.name === "Therapist").priceRUB
-                            const inRub = price / Mod.therapist_coef;
-                            Mod.bitcoin.Price = inRub;
+                const req = request(
+                    "https://api.tarkov.dev/graphql",
+                    {
+                        method: "POST"
+                    },
+                    (res) => {
+                        res.setEncoding("utf8");
+                        let rawData = "";
+                        res.on("data", (chunk) => { rawData += chunk; });
+                        res.on("end", () => {
+                            try {
+                                const parsedData = JSON.parse(rawData);
+                                const price = parsedData.data.item.sellFor.find((x) => x.vendor.name === "Therapist").priceRUB
+                                const inRub = price / Mod.therapist_coef;
+                                Mod.bitcoin.Price = inRub;
 
-                            // Store the prices to disk for next time
-                            const jsonString: string = `{"${Mod.bitcoin.Id}": ${Mod.bitcoin.Price}}`
-                            fs.writeFileSync(Mod.pricePath, JSON.stringify(JSON.parse(jsonString)));
+                                // Store the prices to disk for next time
+                                const jsonString: string = `{"${Mod.bitcoin.Id}": ${Mod.bitcoin.Price}}`
+                                fs.writeFileSync(Mod.pricePath, JSON.stringify(JSON.parse(jsonString)));
 
-                            // Update config file with the next update time
-                            Mod.config.nextUpdate = Math.floor(Date.now() / 1000) + 3600;
-                            fs.writeFileSync(Mod.configPath, JSON.stringify(Mod.config, null, 4));
-                            Mod.logger.logWithColor(`Updated bitcoin to ${inRub} from remote data`, LogTextColor.MAGENTA, LogBackgroundColor.WHITE);
-                            resolve(price);
-                        } catch (e) {
-                            console.error(e.message);
-                        }
+                                // Update config file with the next update time
+                                Mod.config.nextUpdate = Math.floor(Date.now() / 1000) + 3600;
+                                fs.writeFileSync(Mod.configPath, JSON.stringify(Mod.config, null, 4));
+                                Mod.logger.logWithColor(`Updated bitcoin to ${inRub} from remote data`, LogTextColor.MAGENTA, LogBackgroundColor.WHITE);
+                                resolve(price);
+                            } catch (e) {
+                                console.error(e.message);
+                            }
+                        });
                     });
-                });
 
-            req.on('error', (e) => {
-                console.error(e.message);
-                reject(e);
-            })
+                req.on('error', (e) => {
+                    console.error(e.message);
+                    reject(e);
+                })
 
-            req.write(JSON.stringify({
-                query: `{
+                req.write(JSON.stringify({
+                    query: `{
                     item(id: "59faff1d86f7746c51718c9c")
                     {
                       sellFor {
@@ -104,15 +103,14 @@ class Mod implements IPostDBLoadModAsync {
                       }
                     }
                   }`
-            }));
-            req.end();
-			}
+                }));
+                req.end();
+            }
         })
     }
 }
 
-interface Config 
-{
+interface Config {
     nextUpdate: number,
 }
 
