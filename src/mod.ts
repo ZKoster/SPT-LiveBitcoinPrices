@@ -13,11 +13,9 @@ import * as path from "node:path";
 class Mod implements IPostDBLoadModAsync {
     private static bitcoin: any
     private static logger: ILogger
-    private static therapist_coef: number
     private static config: Config;
     private static configPath = path.resolve(__dirname, "../config/config.json");
     private static pricePath = path.resolve(__dirname, "../config/price.json");
-    private static originalPrice;
 
     public async postDBLoadAsync(container: DependencyContainer): Promise<void> {
         Mod.logger = container.resolve<ILogger>("WinstonLogger");
@@ -26,9 +24,7 @@ class Mod implements IPostDBLoadModAsync {
 
         const tables = db.getTables();
         const handbook = tables.templates.handbook;
-        Mod.therapist_coef = (100 - tables.traders["54cb57776803fa99248b456e"].base.loyaltyLevels[0].buy_price_coef) / 100;
         Mod.bitcoin = handbook.Items.find(x => x.Id == "59faff1d86f7746c51718c9c");
-        Mod.originalPrice = Mod.bitcoin.Price;
 
         // Update price on startup
         const currentTime = Math.floor(Date.now() / 1000);
@@ -37,12 +33,12 @@ class Mod implements IPostDBLoadModAsync {
         }
 
         // Get new price every hour
-        setInterval(Mod.getPrice, (60 * 60 * 1000);
+        setInterval(Mod.getPrice, (60 * 60 * 1000));
 
         return;
     }
 
-    static async getPrice(fetchPrices = true): Promise<number> {
+    static async getPrice(fetchPrices = true): Promise<boolean> {
         return new Promise((resolve, reject) => {
             if (!fetchPrices) {
                 // Load last saved price
@@ -53,7 +49,7 @@ class Mod implements IPostDBLoadModAsync {
                     Mod.bitcoin.Price = lastValue;
                     Mod.logger.logWithColor(`Updated bitcoin to ${Mod.bitcoin.Price} from price path`, LogTextColor.MAGENTA, LogBackgroundColor.WHITE);
                 }
-                resolve(Mod.bitcoin.Price);
+                resolve(true);
             } else {
                 const req = request(
                     "https://api.tarkov.dev/graphql",
@@ -68,8 +64,7 @@ class Mod implements IPostDBLoadModAsync {
                             try {
                                 const parsedData = JSON.parse(rawData);
                                 const price = parsedData.data.item.sellFor.find((x) => x.vendor.name === "Therapist").priceRUB
-                                const inRub = price / Mod.therapist_coef;
-                                Mod.bitcoin.Price = inRub;
+                                Mod.bitcoin.Price = price;
 
                                 // Store the prices to disk for next time
                                 const jsonString: string = `{"${Mod.bitcoin.Id}": ${Mod.bitcoin.Price}}`
@@ -78,10 +73,11 @@ class Mod implements IPostDBLoadModAsync {
                                 // Update config file with the next update time
                                 Mod.config.nextUpdate = Math.floor(Date.now() / 1000) + 3600;
                                 fs.writeFileSync(Mod.configPath, JSON.stringify(Mod.config, null, 4));
-                                Mod.logger.logWithColor(`Updated bitcoin to ${inRub} from remote data`, LogTextColor.MAGENTA, LogBackgroundColor.WHITE);
-                                resolve(price);
+                                Mod.logger.logWithColor(`Updated bitcoin to ${price} from remote data`, LogTextColor.MAGENTA, LogBackgroundColor.WHITE);
+                                resolve(true);
                             } catch (e) {
                                 console.error(e.message);
+                                resolve(false);
                             }
                         });
                     });
