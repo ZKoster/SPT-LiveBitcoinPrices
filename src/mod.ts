@@ -14,6 +14,7 @@ class Mod implements IPostDBLoadModAsync {
     private static bitcoin: any
     private static logger: ILogger
     private static config: Config;
+    private static therapist_coef: number;
     private static configPath = path.resolve(__dirname, "../config/config.json");
     private static pricePath = path.resolve(__dirname, "../config/price.json");
 
@@ -24,6 +25,7 @@ class Mod implements IPostDBLoadModAsync {
 
         const tables = db.getTables();
         const handbook = tables.templates.handbook;
+        Mod.therapist_coef = (100 - tables.traders["54cb57776803fa99248b456e"].base.loyaltyLevels[0].buy_price_coef) / 100;
         Mod.bitcoin = handbook.Items.find(x => x.Id == "59faff1d86f7746c51718c9c");
 
         // Update price on startup
@@ -64,7 +66,8 @@ class Mod implements IPostDBLoadModAsync {
                             try {
                                 const parsedData = JSON.parse(rawData);
                                 const price = parsedData.data.item.sellFor.find((x) => x.vendor.name === "Therapist").priceRUB
-                                Mod.bitcoin.Price = price;
+                                const inRub = price / Mod.therapist_coef;
+                                Mod.bitcoin.Price = inRub;
 
                                 // Store the prices to disk for next time
                                 const jsonString: string = `{"${Mod.bitcoin.Id}": ${Mod.bitcoin.Price}}`
