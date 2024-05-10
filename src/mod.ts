@@ -76,7 +76,7 @@ class Mod implements IPostDBLoadModAsync {
                                 // Update config file with the next update time
                                 Mod.config.nextUpdate = Math.floor(Date.now() / 1000) + 3600;
                                 fs.writeFileSync(Mod.configPath, JSON.stringify(Mod.config, null, 4));
-                                Mod.logger.logWithColor(`Updated bitcoin to ${price} from remote data`, LogTextColor.MAGENTA, LogBackgroundColor.WHITE);
+                                Mod.logger.logWithColor(`Updated bitcoin to ${Mod.bitcoin.Price} from remote data`, LogTextColor.MAGENTA, LogBackgroundColor.WHITE);
                                 resolve(true);
                             } catch (e) {
                                 console.error(e.message);
