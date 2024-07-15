@@ -1,11 +1,11 @@
 import { DependencyContainer } from "tsyringe";
 
-import { IPostDBLoadModAsync } from "@spt-aki/models/external/IPostDBLoadModAsync";
-import { DatabaseServer } from "@spt-aki/servers/DatabaseServer";
+import { IPostDBLoadModAsync } from "@spt/models/external/IPostDBLoadModAsync";
+import { DatabaseServer } from "@spt/servers/DatabaseServer";
 
-import { ILogger } from "@spt-aki/models/spt/utils/ILogger";
-import { LogTextColor } from "@spt-aki/models/spt/logging/LogTextColor";
-import { LogBackgroundColor } from "@spt-aki/models/spt/logging/LogBackgroundColor";
+import { ILogger } from "@spt/models/spt/utils/ILogger";
+import { LogTextColor } from "@spt/models/spt/logging/LogTextColor";
+import { LogBackgroundColor } from "@spt/models/spt/logging/LogBackgroundColor";
 import { request } from "https";
 import * as fs from "node:fs";
 import * as path from "node:path";
